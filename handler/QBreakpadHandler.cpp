@@ -22,7 +22,6 @@
 #include <QCoreApplication>
 
 #include "QBreakpadHandler.h"
-#include "QBreakpadHttpUploader.h"
 
 #define QBREAKPAD_VERSION  0x000400
 
@@ -82,7 +81,6 @@ class QBreakpadHandlerPrivate
 public:
     google_breakpad::ExceptionHandler* pExptHandler;
     QString dumpPath;
-    QUrl uploadUrl;
 };
 
 //------------------------------------------------------------------------------
@@ -139,11 +137,6 @@ void QBreakpadHandler::setDumpPath(const QString& path)
 #endif
 }
 
-QString QBreakpadHandler::uploadUrl() const
-{
-    return d->uploadUrl.toString();
-}
-
 QStringList QBreakpadHandler::dumpFileList() const
 {
     if(!d->dumpPath.isNull() && !d->dumpPath.isEmpty()) {
@@ -153,28 +146,5 @@ QStringList QBreakpadHandler::dumpFileList() const
     }
 
     return QStringList();
-}
-
-void QBreakpadHandler::setUploadUrl(const QUrl &url)
-{
-    if(!url.isValid() || url.isEmpty())
-        return;
-
-    d->uploadUrl = url;
-}
-
-void QBreakpadHandler::sendDumps()
-{
-    if(!d->dumpPath.isNull() && !d->dumpPath.isEmpty()) {
-        QDir dumpDir(d->dumpPath);
-        dumpDir.setNameFilters(QStringList()<<"*.dmp");
-        QStringList dumpFiles = dumpDir.entryList();
-
-        foreach(QString itDmpFileName, dumpFiles) {
-            qDebug() << "Sending " << QString(itDmpFileName);
-            QBreakpadHttpUploader *sender = new QBreakpadHttpUploader(d->uploadUrl);
-            sender->uploadDump(d->dumpPath + "/" + itDmpFileName);
-        }
-    }
 }
 

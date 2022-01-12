@@ -21,8 +21,6 @@ HEADERS += \
     $$PWD/singletone/call_once.h \
     $$PWD/singletone/singleton.h \
     $$PWD/QBreakpadHandler.h \
-    $$PWD/QBreakpadHttpUploader.h
 
 SOURCES += \
     $$PWD/QBreakpadHandler.cpp \
-    $$PWD/QBreakpadHttpUploader.cpp

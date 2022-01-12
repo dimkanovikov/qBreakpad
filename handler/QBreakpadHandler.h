@@ -40,15 +40,10 @@ public:
     QBreakpadHandler();
     ~QBreakpadHandler();
 
-    QString uploadUrl() const;
     QString dumpPath() const;
     QStringList dumpFileList() const;
 
     void setDumpPath(const QString& path);
-    void setUploadUrl(const QUrl& url);
-
-public slots:
-    void sendDumps();
 
 private:
     QBreakpadHandlerPrivate* d;
