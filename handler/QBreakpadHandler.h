@@ -2,6 +2,7 @@
  *  Copyright (C) 2009 Aleksey Palazhchenko
  *  Copyright (C) 2014 Sergey Shambir
  *  Copyright (C) 2016 Alexander Makarov
+ *  Copyright (C) 2022 Dimka Novikov
  *
  * This file is a part of Breakpad-qt library.
  *
@@ -17,37 +18,19 @@
  *
  */
 
-#ifndef QBREAKPAD_HANDLER_H
-#define QBREAKPAD_HANDLER_H
+#pragma once
 
-#include <QString>
-#include <QUrl>
 #include "singletone/singleton.h"
 
-namespace google_breakpad {
-    class ExceptionHandler;
-    class MinidumpDescriptor;
-}
+class QString;
 
-class QBreakpadHandlerPrivate;
 
-class QBreakpadHandler: public QObject
+class QBreakpadHandler
 {
-    Q_OBJECT
 public:
     static QString version();
 
-    QBreakpadHandler();
-    ~QBreakpadHandler();
-
-    QString dumpPath() const;
-    QStringList dumpFileList() const;
-
-    void setDumpPath(const QString& path);
-
-private:
-    QBreakpadHandlerPrivate* d;
+public:
+    void init(const QString& _dumpPath);
 };
 #define QBreakpadInstance Singleton<QBreakpadHandler>::instance()
-
-#endif	// QBREAKPAD_HANDLER_H
