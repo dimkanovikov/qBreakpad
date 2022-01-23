@@ -25,12 +25,15 @@
 class QString;
 
 
+/**
+ * @brief Обработчик исключений приложения
+ */
 class QBreakpadHandler
 {
 public:
-    static QString version();
-
-public:
-    void init(const QString& _dumpPath);
+    /**
+     * @brief Инициилизировать обработчик, указывая папку, куда сохранять краши и путь к файлу лога
+     */
+    void init(const QString& _dumpPath, const QString& _logFilePath);
 };
 #define QBreakpadInstance Singleton<QBreakpadHandler>::instance()

@@ -20,12 +20,6 @@
 
 #include "QBreakpadHandler.h"
 
-#include <QCoreApplication>
-#include <QDir>
-#include <QProcess>
-
-#define QBREAKPAD_VERSION 0x000400
-
 #if defined(Q_OS_MAC)
 #include "client/mac/handler/exception_handler.h"
 #elif defined(Q_OS_LINUX)
@@ -34,14 +28,24 @@
 #include "client/windows/handler/exception_handler.h"
 #endif
 
+#include <QDir>
+
+namespace {
+
+const QLatin1String kPathSeparator("/");
+static QString s_logDirPath;
+static QString s_logFilePath;
+
 #if defined(Q_OS_WIN32)
-bool DumpCallback(const wchar_t* dump_dir, const wchar_t* minidump_id, void* context,
-                  EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool succeeded)
+bool minidumpHandlerCallback(const wchar_t* dump_dir, const wchar_t* minidump_id, void* context,
+                             EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion,
+                             bool succeeded)
 #elif defined(Q_OS_MAC)
-bool DumpCallback(const char* dump_dir, const char* minidump_id, void* context, bool succeeded)
+bool minidumpHandlerCallback(const char* dump_dir, const char* minidump_id, void* context,
+                             bool succeeded)
 #else
-bool DumpCallback(const google_breakpad::MinidumpDescriptor& descriptor, void* context,
-                  bool succeeded)
+bool minidumpHandlerCallback(const google_breakpad::MinidumpDescriptor& descriptor, void* context,
+                             bool succeeded)
 #endif
 {
 #ifdef Q_OS_LINUX
@@ -52,65 +56,67 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor& descriptor, void* c
     Q_UNUSED(assertion);
     Q_UNUSED(exinfo);
 #endif
+
     /*
         NO STACK USE, NO HEAP USE THERE !!!
         Creating QString's, using qDebug, etc. - everything is crash-unfriendly.
     */
 
+    //
+    // Логируем информацию о сохранённом краше
+    //
+    QString path;
 #if defined(Q_OS_WIN32)
-    QString path = QString::fromWCharArray(dump_dir) + QLatin1String("/")
-        + QString::fromWCharArray(minidump_id);
-    qDebug("%s, dump path: %s\n",
-           succeeded ? "Succeed to write minidump" : "Failed to write minidump", qPrintable(path));
+    path
+        = QString::fromWCharArray(dump_dir) + kPathSeparator + QString::fromWCharArray(minidump_id);
 #elif defined(Q_OS_MAC)
-    QString path
-        = QString::fromUtf8(dump_dir) + QLatin1String("/") + QString::fromUtf8(minidump_id);
+    path = QString::fromUtf8(dump_dir) + kPathSeparator + QString::fromUtf8(minidump_id);
+#else
+    path = descriptor.path();
+#endif
     qDebug("%s, dump path: %s\n",
            succeeded ? "Succeed to write minidump" : "Failed to write minidump", qPrintable(path));
-#else
-    qDebug("%s, dump path: %s\n",
-           succeeded ? "Succeed to write minidump" : "Failed to write minidump", descriptor.path());
-#endif
+
+    //
+    // Создаём копию файла лога с именем как у дампа
+    //
+    QFile::copy(s_logFilePath,
+                s_logDirPath + path.split(kPathSeparator).last() + QLatin1String(".log"));
 
     return succeeded;
 }
 
+} // namespace
 
-QString QBreakpadHandler::version()
+
+void QBreakpadHandler::init(const QString& _dumpPath, const QString& _logFilePath)
 {
-    return QString("%1.%2.%3")
-        .arg(QString::number((QBREAKPAD_VERSION >> 16) & 0xff),
-             QString::number((QBREAKPAD_VERSION >> 8) & 0xff),
-             QString::number(QBREAKPAD_VERSION & 0xff));
-}
-
-void QBreakpadHandler::init(const QString& _dumpPath)
-{
-    QString absPath = _dumpPath;
-    if (!QDir::isAbsolutePath(absPath)) {
-        absPath = QDir::cleanPath(qApp->applicationDirPath() + "/" + _dumpPath);
-    }
-    Q_ASSERT(QDir::isAbsolutePath(absPath));
-
-    QDir().mkpath(absPath);
-    if (!QDir().exists(absPath)) {
-        qDebug("Failed to set dump path which not exists: %s", qPrintable(absPath));
+    Q_ASSERT(QDir::isAbsolutePath(_dumpPath));
+    QDir().mkpath(_dumpPath);
+    if (!QDir().exists(_dumpPath)) {
+        qDebug("Failed to set dump path which not exists: %s", qPrintable(_dumpPath));
         return;
     }
 
-// NOTE: ExceptionHandler initialization
+    Q_ASSERT(!_logFilePath.isEmpty());
+    s_logDirPath = QFileInfo(_logFilePath).absolutePath() + kPathSeparator;
+    s_logFilePath = _logFilePath;
+
+    //
+    // Инициилизируем обработчик исключений
+    //
 #if defined(Q_OS_WIN32)
     new google_breakpad::ExceptionHandler(absPath.toStdWString(), /*FilterCallback*/ 0,
-                                          DumpCallback, /*context*/ 0,
+                                          minidumpHandlerCallback, /*context*/ 0,
                                           google_breakpad::ExceptionHandler::HANDLER_ALL);
 #elif defined(Q_OS_MAC)
     new google_breakpad::ExceptionHandler(absPath.toStdString(),
-                                          /*FilterCallback*/ 0, DumpCallback, /*context*/ 0, true,
-                                          NULL);
+                                          /*FilterCallback*/ 0, minidumpHandlerCallback,
+                                          /*context*/ 0, true, NULL);
 #else
     new google_breakpad::ExceptionHandler(
-        google_breakpad::MinidumpDescriptor(absPath.toStdString()),
-        /*FilterCallback*/ 0, DumpCallback,
+        google_breakpad::MinidumpDescriptor(_dumpPath.toStdString()),
+        /*FilterCallback*/ 0, minidumpHandlerCallback,
         /*context*/ 0, true, -1);
 #endif
 }
