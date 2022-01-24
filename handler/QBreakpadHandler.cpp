@@ -106,11 +106,11 @@ void QBreakpadHandler::init(const QString& _dumpPath, const QString& _logFilePat
     // Инициилизируем обработчик исключений
     //
 #if defined(Q_OS_WIN32)
-    new google_breakpad::ExceptionHandler(absPath.toStdWString(), /*FilterCallback*/ 0,
+    new google_breakpad::ExceptionHandler(_dumpPath.toStdWString(), /*FilterCallback*/ 0,
                                           minidumpHandlerCallback, /*context*/ 0,
                                           google_breakpad::ExceptionHandler::HANDLER_ALL);
 #elif defined(Q_OS_MAC)
-    new google_breakpad::ExceptionHandler(absPath.toStdString(),
+    new google_breakpad::ExceptionHandler(_dumpPath.toStdString(),
                                           /*FilterCallback*/ 0, minidumpHandlerCallback,
                                           /*context*/ 0, true, NULL);
 #else
